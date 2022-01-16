@@ -124,6 +124,11 @@ class SEDbgMuxApp(cmd2.Cmd):
 		f = self.peer.recv()
 		assert(f['MsgType'] == DbgMuxFrame.MsgType.ConnEstablished)
 		ConnRef = DbgMuxFrame.MsgConnEstablished.parse(f['MsgData'])['ConnRef']
+		if ConnRef == 0xffff:
+			log.warning("Connection failed: unknown DPRef=0x%04x?", opts.DPRef)
+			self.peer.send(DbgMuxFrame.MsgType.Ack)
+			return
+
 		log.info("Connection established (ConnRef=0x%04x)", ConnRef)
 
 		# Read the messages
