@@ -104,13 +104,12 @@ class SEDbgMuxApp(cmd2.Cmd):
 		while True:
 			f = self.peer.recv()
 			if f['MsgType'] == DbgMuxFrame.MsgType.Ident:
-				msg = DbgMuxFrame.MsgIdent.parse(f['MsgData'])
 				log.info("Identified target: '%s', IMEI=%s",
-					 msg['Ident'][:-15], msg['Ident'][-15:])
+					 f['Msg']['Ident'][:-15],
+					 f['Msg']['Ident'][-15:])
 			elif f['MsgType'] == DbgMuxFrame.MsgType.DPAnnounce:
-				msg = DbgMuxFrame.MsgDPAnnounce.parse(f['MsgData'])
 				log.info("Data Provider available (DPRef=0x%04x): '%s'",
-					 msg['DPRef'], msg['Name'])
+					 f['Msg']['DPRef'], f['Msg']['Name'])
 
 			# No more data in the buffer
 			if self.sl.in_waiting == 0:
@@ -128,14 +127,12 @@ class SEDbgMuxApp(cmd2.Cmd):
 	@cmd2.with_category(CATEGORY_DBGMUX)
 	def do_ping(self, opts) -> None:
 		''' Send a Ping to the target, expect Pong '''
-		msg = DbgMuxFrame.MsgPingPong
-
 		log.info('Tx Ping with payload \'%s\'', opts.payload)
-		self.peer.send(DbgMuxFrame.MsgType.Ping, msg.build(opts.payload))
+		self.peer.send(DbgMuxFrame.MsgType.Ping, opts.payload)
 
 		f = self.peer.recv()
 		assert(f['MsgType'] == DbgMuxFrame.MsgType.Pong)
-		log.info('Rx Pong with payload \'%s\'', msg.parse(f['MsgData']))
+		log.info('Rx Pong with payload \'%s\'', f['Msg'])
 
 	establish_parser = cmd2.Cmd2ArgumentParser()
 	establish_parser.add_argument('DPRef',
@@ -147,18 +144,16 @@ class SEDbgMuxApp(cmd2.Cmd):
 	def do_establish(self, opts) -> None:
 		''' Establish connection with a Data Provider '''
 		log.info("Establishing connection with DPRef=0x%04x", opts.DPRef)
-		self.peer.send(DbgMuxFrame.MsgType.ConnEstablish,
-			       DbgMuxFrame.MsgConnEstablish.build({ 'DPRef' : opts.DPRef }))
+		self.peer.send(DbgMuxFrame.MsgType.ConnEstablish, dict(DPRef=opts.DPRef))
 
 		f = self.peer.recv()
 		assert(f['MsgType'] == DbgMuxFrame.MsgType.ConnEstablished)
-		ConnRef = DbgMuxFrame.MsgConnEstablished.parse(f['MsgData'])['ConnRef']
-		if ConnRef == 0xffff:
+		if f['Msg']['ConnRef'] == 0xffff:
 			log.warning("Connection failed: unknown DPRef=0x%04x?", opts.DPRef)
 			self.peer.send(DbgMuxFrame.MsgType.Ack)
 			return
 
-		log.info("Connection established (ConnRef=0x%04x)", ConnRef)
+		log.info("Connection established (ConnRef=0x%04x)", f['Msg']['ConnRef'])
 
 		# Read the messages
 		while True:
@@ -169,8 +164,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 				self.peer.send(DbgMuxFrame.MsgType.Ack)
 				continue
 			try: # FIXME: there can be binary data
-				msg = DbgMuxFrame.MsgConnData.parse(f['MsgData'])
-				self.stdout.write(msg['Data'].decode())
+				self.stdout.write(f['Msg']['Data'].decode())
 			except: # ... ignore it for now
 				continue
 

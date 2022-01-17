@@ -18,6 +18,7 @@
 
 import logging as log
 
+from typing import Any
 from construct import Container, Int16ul
 from proto import DbgMuxFrame
 
@@ -27,7 +28,10 @@ class DbgMuxPeer:
 		self.rx_count: int = 0
 		self._sl = sl
 
-	def send(self, msg_type: DbgMuxFrame.MsgType, msg_data: bytes = b'') -> None:
+	def send(self, msg_type: DbgMuxFrame.MsgType, msg: Any = b'') -> None:
+		# Encode the inner message first
+		msg_data = DbgMuxFrame.Msg.build(msg, MsgType=msg_type)
+
 		c = Container({
 			'TxCount' : (self.tx_count + 1) % 256,
 			'RxCount' : self.rx_count % 256,
@@ -62,6 +66,9 @@ class DbgMuxPeer:
 		log.debug('Rx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
 			  c['TxCount'], c['RxCount'], c['FCS'],
 			  c['MsgType'], c['MsgData'].hex())
+
+		# Parse the inner message
+		c['Msg'] = DbgMuxFrame.Msg.parse(c['MsgData'], MsgType=c['MsgType'])
 
 		self.rx_count += 1
 		return c
