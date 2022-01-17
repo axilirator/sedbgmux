@@ -31,16 +31,22 @@ from peer import DbgMuxPeer
 class SEDbgMuxApp(cmd2.Cmd):
 	DESC = 'DebugMux client for [Sony] Ericsson phones and modems'
 
+	# Command categories
+	CATEGORY_CONN = 'Connection management commands'
+	CATEGORY_DBGMUX = 'DebugMux specific commands'
+
 	def __init__(self, argv):
 		super().__init__(allow_cli_args=False)
 
 		self.intro = cmd2.style('Welcome to %s!' % self.DESC, fg=cmd2.fg.red)
 		self.prompt = 'DebugMux (\'%s\')> ' % argv.serial_port
+		self.default_category = 'Built-in commands'
 		self.argv = argv
 
 		# Modem connection state
 		self.connected = False
 
+	@cmd2.with_category(CATEGORY_CONN)
 	def do_connect(self, opts) -> None:
 		''' Connect to the modem and switch it to DebugMux mode '''
 		slp = {
@@ -64,6 +70,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.peer = DbgMuxPeer(self.sl)
 		self.connected = True
 
+	@cmd2.with_category(CATEGORY_CONN)
 	def do_disconnect(self, opts) -> None:
 		''' Disconnect from the modem '''
 		self.sl.close()
@@ -71,6 +78,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.peer = None
 		self.connected = False
 
+	@cmd2.with_category(CATEGORY_CONN)
 	def do_status(self, opts) -> None:
 		''' Print connection info and statistics '''
 		if not self.connected:
@@ -81,6 +89,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.poutput('TxCount (Ns): %d' % self.peer.tx_count)
 		self.poutput('RxCount (Nr): %d' % self.peer.rx_count)
 
+	@cmd2.with_category(CATEGORY_DBGMUX)
 	def do_enquiry(self, opts) -> None:
 		''' Enquiry target identifier and available Data Providers '''
 		self.peer.send(DbgMuxFrame.MsgType.Enquiry)
@@ -108,6 +117,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 				 help='Ping payload')
 
 	@cmd2.with_argparser(ping_parser)
+	@cmd2.with_category(CATEGORY_DBGMUX)
 	def do_ping(self, opts) -> None:
 		''' Send a Ping to the target, expect Pong '''
 		msg = DbgMuxFrame.MsgPingPong
@@ -125,6 +135,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 				      help='DPRef of a Data Provider in hex')
 
 	@cmd2.with_argparser(establish_parser)
+	@cmd2.with_category(CATEGORY_DBGMUX)
 	def do_establish(self, opts) -> None:
 		''' Establish connection with a Data Provider '''
 		log.info("Establishing connection with DPRef=0x%04x", opts.DPRef)
