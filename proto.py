@@ -88,3 +88,18 @@ class DbgMuxFrame:
 		'ConnRef' / Int16ul,
 		'Data' / GreedyBytes,
 	)
+
+	# Complete message definition
+	Msg = Switch(this.MsgType, default=GreedyBytes, cases={
+		MsgType.Enquiry		: Const(b''),
+		MsgType.Ident		: MsgIdent,
+		MsgType.Ping		: MsgPingPong,
+		MsgType.Pong		: MsgPingPong,
+		MsgType.DPAnnounce	: MsgDPAnnounce,
+		MsgType.ConnEstablish	: MsgConnEstablish,
+		MsgType.ConnEstablished	: MsgConnEstablished,
+		MsgType.ConnTerminate	: MsgConnTerminate,
+		MsgType.ConnTerminated	: MsgConnTerminated,
+		MsgType.ConnData	: MsgConnData,
+		MsgType.Ack		: Const(b''),
+	})
