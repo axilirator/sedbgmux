@@ -71,6 +71,16 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.peer = None
 		self.connected = False
 
+	def do_status(self, opts) -> None:
+		''' Print connection info and statistics '''
+		if not self.connected:
+			self.poutput('Not connected')
+			return
+		self.poutput('Connected to \'%s\'' % self.argv.serial_port)
+		self.poutput('Baudrate: %d' % self.argv.serial_baudrate)
+		self.poutput('TxCount (Ns): %d' % self.peer.tx_count)
+		self.poutput('RxCount (Nr): %d' % self.peer.rx_count)
+
 	def do_enquiry(self, opts) -> None:
 		''' Enquiry target identifier and available Data Providers '''
 		self.peer.send(DbgMuxFrame.MsgType.Enquiry)
