@@ -44,7 +44,15 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.argv = argv
 
 		# Modem connection state
-		self.connected = False
+		self.set_connected(False)
+
+	def set_connected(self, state: bool) -> None:
+		self.connected: bool = state
+		if self.connected:
+			self.enable_category(self.CATEGORY_DBGMUX)
+		else:
+			msg = 'You must be connected to use this command'
+			self.disable_category(self.CATEGORY_DBGMUX, msg)
 
 	@cmd2.with_category(CATEGORY_CONN)
 	def do_connect(self, opts) -> None:
@@ -68,7 +76,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.transceive('AT*EDEBUGMUX', 'CONNECT')
 		# Init DebugMux peer
 		self.peer = DbgMuxPeer(self.sl)
-		self.connected = True
+		self.set_connected(True)
 
 	@cmd2.with_category(CATEGORY_CONN)
 	def do_disconnect(self, opts) -> None:
@@ -76,7 +84,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.sl.close()
 		self.sl = None
 		self.peer = None
-		self.connected = False
+		self.set_connected(False)
 
 	@cmd2.with_category(CATEGORY_CONN)
 	def do_status(self, opts) -> None:
