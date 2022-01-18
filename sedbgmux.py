@@ -131,7 +131,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.peer.send(DbgMuxFrame.MsgType.Ping, opts.payload)
 
 		f = self.peer.recv()
-		assert(f['MsgType'] == DbgMuxFrame.MsgType.Pong)
+		assert f['MsgType'] == DbgMuxFrame.MsgType.Pong
 		log.info('Rx Pong with payload \'%s\'', f['Msg'])
 
 	establish_parser = cmd2.Cmd2ArgumentParser()
@@ -147,7 +147,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 		self.peer.send(DbgMuxFrame.MsgType.ConnEstablish, dict(DPRef=opts.DPRef))
 
 		f = self.peer.recv()
-		assert(f['MsgType'] == DbgMuxFrame.MsgType.ConnEstablished)
+		assert f['MsgType'] == DbgMuxFrame.MsgType.ConnEstablished
 		if f['Msg']['ConnRef'] == 0xffff:
 			log.warning("Connection failed: unknown DPRef=0x%04x?", opts.DPRef)
 			self.peer.send(DbgMuxFrame.MsgType.Ack)
@@ -192,7 +192,7 @@ class SEDbgMuxApp(cmd2.Cmd):
 
 			if rsp[:7] == '*EMRDY:':
 				continue
-			assert(rsp == exp)
+			assert rsp == exp
 			break
 
 ap = argparse.ArgumentParser(prog='sedbgmux', description=SEDbgMuxApp.DESC,
