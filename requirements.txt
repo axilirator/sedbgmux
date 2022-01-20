@@ -1,0 +1,4 @@
+construct
+pyserial
+crcmod
+cmd2
