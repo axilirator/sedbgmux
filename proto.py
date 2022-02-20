@@ -39,7 +39,7 @@ class DbgMuxFrame:
         ConnTerminate       = 0x6d,  # 'm'
         ConnTerminated      = 0x6e,  # 'n'
         ConnData            = 0x6f,  # 'o'
-        # TODO:             = 0x70,  # 'p'
+        FlowControl         = 0x70,  # 'p'
         Ack                 = 0x71,  # 'q'
     )
 
@@ -89,6 +89,12 @@ class DbgMuxFrame:
         'Data' / GreedyBytes,
     )
 
+    # MsgType.FlowControl structure
+    MsgFlowControl = Struct(
+        'ConnRef' / Int16ul,
+        'DataBlockLimit' / Int8ul,
+	)
+
     # Complete message definition
     Msg = Switch(this.MsgType, default=GreedyBytes, cases={
         MsgType.Enquiry             : Const(b''),
@@ -101,5 +107,6 @@ class DbgMuxFrame:
         MsgType.ConnTerminate       : MsgConnTerminate,
         MsgType.ConnTerminated      : MsgConnTerminated,
         MsgType.ConnData            : MsgConnData,
+        MsgType.FlowControl         : MsgFlowControl,
         MsgType.Ack                 : Const(b''),
     })
