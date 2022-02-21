@@ -129,6 +129,7 @@ class SEDbgMuxApp(cmd2.Cmd):
         f = self.peer.recv()
         assert f['MsgType'] == DbgMuxFrame.MsgType.Pong
         log.info('Rx Pong with payload \'%s\'', f['Msg'])
+        self.peer.send(DbgMuxFrame.MsgType.Ack)
 
     establish_parser = cmd2.Cmd2ArgumentParser()
     establish_parser.add_argument('DPRef',
