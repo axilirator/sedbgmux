@@ -20,11 +20,11 @@
 
 import logging as log
 import argparse
-import serial
 import cmd2
 import enum
 import sys
 
+from transport import TransportModem
 from proto import DbgMuxFrame
 from peer import DbgMuxPeer
 
@@ -44,6 +44,10 @@ class SEDbgMuxApp(cmd2.Cmd):
         self.default_category = 'Built-in commands'
         self.argv = argv
 
+        # Init the transport layer and DebugMux peer
+        self.transport = TransportModem(self.argv)
+        self.peer = DbgMuxPeer(self.transport)
+
         # Modem connection state
         self.set_connected(False)
 
@@ -58,28 +62,13 @@ class SEDbgMuxApp(cmd2.Cmd):
     @cmd2.with_category(CATEGORY_CONN)
     def do_connect(self, opts) -> None:
         ''' Connect to the modem and switch it to DebugMux mode '''
-        self.sl = serial.Serial(port=self.argv.serial_port,
-                                baudrate=self.argv.serial_baudrate,
-                                bytesize=8, parity='N', stopbits=1,
-                                timeout=self.argv.serial_timeout,
-                                # xonoff=False,
-                                rtscts=False,
-                                dsrdtr=False)
-
-        # Test the modem
-        self.transceive('AT', 'OK')
-        # Enable DebugMux mode
-        self.transceive('AT*EDEBUGMUX', 'CONNECT')
-        # Init DebugMux peer
-        self.peer = DbgMuxPeer(self.sl)
+        self.transport.connect()
         self.set_connected(True)
 
     @cmd2.with_category(CATEGORY_CONN)
     def do_disconnect(self, opts) -> None:
         ''' Disconnect from the modem '''
-        self.sl.close()
-        self.sl = None
-        self.peer = None
+        self.transport.disconnect()
         self.set_connected(False)
 
     @cmd2.with_category(CATEGORY_CONN)
@@ -108,7 +97,8 @@ class SEDbgMuxApp(cmd2.Cmd):
                          f['Msg']['DPRef'], f['Msg']['Name'])
 
             # No more data in the buffer
-            if self.sl.in_waiting == 0:
+            # FIXME: layer violation!
+            if self.transport._sl.in_waiting == 0:
                 break
 
         # ACKnowledge reception of the info
@@ -169,30 +159,6 @@ class SEDbgMuxApp(cmd2.Cmd):
 
             # ACKnowledge reception of a frame
             self.peer.send(DbgMuxFrame.MsgType.Ack)
-
-    def send_data(self, data: bytes) -> None:
-        log.debug("MODEM <- %s", str(data))
-        self.sl.write(data)
-
-    def send_at_cmd(self, cmd: str, handle_echo: bool = True) -> None:
-        self.send_data(cmd.encode() + b'\r')
-        if handle_echo:
-            self.sl.readline()
-
-    def read_at_rsp(self) -> str:
-        rsp = self.sl.readline()
-        log.debug("MODEM -> %s", str(rsp))
-        return rsp.rstrip().decode()
-
-    def transceive(self, cmd: str, exp: str) -> None:
-        while True:
-            self.send_at_cmd(cmd)
-            rsp = self.read_at_rsp()
-
-            if rsp[:7] == '*EMRDY:':
-                continue
-            assert rsp == exp
-            break
 
 
 ap = argparse.ArgumentParser(prog='sedbgmux', description=SEDbgMuxApp.DESC,

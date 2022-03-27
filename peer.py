@@ -20,14 +20,16 @@ import logging as log
 
 from typing import Any
 from construct import Container, Int16ul
+
+from transport import Transport
 from proto import DbgMuxFrame
 
 
 class DbgMuxPeer:
-    def __init__(self, sl):
+    def __init__(self, io: Transport):
         self.tx_count: int = 0
         self.rx_count: int = 0
-        self._sl = sl
+        self.io = io
 
     def send(self, msg_type: DbgMuxFrame.MsgType, msg: Any = b'') -> None:
         # Encode the inner message first
@@ -55,14 +57,14 @@ class DbgMuxPeer:
                   c['TxCount'], c['RxCount'], c['FCS'],
                   c['MsgType'], c['MsgData'].hex())
 
-        self._sl.write(frame + Int16ul.build(c['FCS']))
+        self.io.write(frame + Int16ul.build(c['FCS']))
 
         # ACK is not getting accounted
         if msg_type != DbgMuxFrame.MsgType.Ack:
             self.tx_count += 1
 
     def recv(self) -> Container:
-        c = DbgMuxFrame.Frame.parse_stream(self._sl)
+        c = DbgMuxFrame.Frame.parse_stream(self.io)
 
         log.debug('Rx frame (Ns=%03u, Nr=%03u, fcs=0x%04x) %s %s',
                   c['TxCount'], c['RxCount'], c['FCS'],
