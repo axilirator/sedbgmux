@@ -51,7 +51,7 @@ class DbgMuxPeer:
         frame = DbgMuxFrame.Frame.build(c)[:-2]  # strip b'\x00\x00'
         c['FCS'] = DbgMuxFrame.fcs_func(frame)
 
-        log.debug('Tx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
+        log.debug('Tx frame (Ns=%03u, Nr=%03u, fcs=0x%04x) %s %s',
                   c['TxCount'], c['RxCount'], c['FCS'],
                   c['MsgType'], c['MsgData'].hex())
 
@@ -64,7 +64,7 @@ class DbgMuxPeer:
     def recv(self) -> Container:
         c = DbgMuxFrame.Frame.parse_stream(self._sl)
 
-        log.debug('Rx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
+        log.debug('Rx frame (Ns=%03u, Nr=%03u, fcs=0x%04x) %s %s',
                   c['TxCount'], c['RxCount'], c['FCS'],
                   c['MsgType'], c['MsgData'].hex())
 
