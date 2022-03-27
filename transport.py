@@ -81,21 +81,28 @@ class TransportModem(Transport):
         data: bytes = cmd.encode() + b'\r'
         log.debug('MODEM <- %s', str(data))
         self.write(data)
-        if handle_echo:
-            self._sl.readline()
+        while handle_echo:
+            rdata: bytes = self._sl.readline()
+            line: str = rdata.rstrip().decode()
+            if not line:
+                continue  # Ignore empty lines
+            if line == cmd:
+                break
+            log.debug('MODEM -> %s', str(rdata))
 
     def read_at_rsp(self) -> str:
         ''' Read an AT command response from the modem '''
-        rsp = self._sl.readline()
-        log.debug('MODEM -> %s', str(rsp))
-        return rsp.rstrip().decode()
+        while True:
+            rdata: bytes = self._sl.readline()
+            line: str = rdata.rstrip().decode()
+            if not line:
+                continue  # Ignore empty lines
+            log.debug('MODEM -> %s', str(rdata))
+            if line.startswith(('+', '*')):
+                continue  # Ignore events reported by the modem
+            return line
 
     def transceive(self, cmd: str, exp: str) -> None:
-        while True:
-            self.send_at_cmd(cmd)
-            rsp = self.read_at_rsp()
-
-            if rsp[:7] == '*EMRDY:':
-                continue
-            assert rsp == exp
-            break
+        self.send_at_cmd(cmd)
+        rsp = self.read_at_rsp()
+        assert rsp == exp
