@@ -22,53 +22,54 @@ from typing import Any
 from construct import Container, Int16ul
 from proto import DbgMuxFrame
 
+
 class DbgMuxPeer:
-	def __init__(self, sl):
-		self.tx_count: int = 0
-		self.rx_count: int = 0
-		self._sl = sl
+    def __init__(self, sl):
+        self.tx_count: int = 0
+        self.rx_count: int = 0
+        self._sl = sl
 
-	def send(self, msg_type: DbgMuxFrame.MsgType, msg: Any = b'') -> None:
-		# Encode the inner message first
-		msg_data = DbgMuxFrame.Msg.build(msg, MsgType=msg_type)
+    def send(self, msg_type: DbgMuxFrame.MsgType, msg: Any = b'') -> None:
+        # Encode the inner message first
+        msg_data = DbgMuxFrame.Msg.build(msg, MsgType=msg_type)
 
-		c = Container({
-			'TxCount' : (self.tx_count + 1) % 256,
-			'RxCount' : self.rx_count % 256,
-			'MsgType' : msg_type,
-			'MsgData' : msg_data,
-			'FCS' : 0 # Calculated below
-		})
+        c = Container({
+            'TxCount': (self.tx_count + 1) % 256,
+            'RxCount': self.rx_count % 256,
+            'MsgType': msg_type,
+            'MsgData': msg_data,
+            'FCS': 0  # Calculated below
+        })
 
-		# ACK is a bit special
-		if msg_type == DbgMuxFrame.MsgType.Ack:
-			c['TxCount'] = 0xf1
+        # ACK is a bit special
+        if msg_type == DbgMuxFrame.MsgType.Ack:
+            c['TxCount'] = 0xf1
 
-		# There is a Checksum construct, but it requires all checksummed fields
-		# to be wrapped into an additional RawCopy construct.  This is ugly and
-		# inconvinient from the API point of view, so we calculate the FCS manually:
-		frame = DbgMuxFrame.Frame.build(c)[:-2] # strip b'\x00\x00'
-		c['FCS'] = DbgMuxFrame.fcs_func(frame)
+        # There is a Checksum construct, but it requires all checksummed fields
+        # to be wrapped into an additional RawCopy construct.  This is ugly and
+        # inconvinient from the API point of view, so we calculate the FCS manually:
+        frame = DbgMuxFrame.Frame.build(c)[:-2]  # strip b'\x00\x00'
+        c['FCS'] = DbgMuxFrame.fcs_func(frame)
 
-		log.debug('Tx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
-			  c['TxCount'], c['RxCount'], c['FCS'],
-			  c['MsgType'], c['MsgData'].hex())
+        log.debug('Tx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
+                  c['TxCount'], c['RxCount'], c['FCS'],
+                  c['MsgType'], c['MsgData'].hex())
 
-		self._sl.write(frame + Int16ul.build(c['FCS']))
+        self._sl.write(frame + Int16ul.build(c['FCS']))
 
-		# ACK is not getting accounted
-		if msg_type != DbgMuxFrame.MsgType.Ack:
-			self.tx_count += 1
+        # ACK is not getting accounted
+        if msg_type != DbgMuxFrame.MsgType.Ack:
+            self.tx_count += 1
 
-	def recv(self) -> Container:
-		c = DbgMuxFrame.Frame.parse_stream(self._sl)
+    def recv(self) -> Container:
+        c = DbgMuxFrame.Frame.parse_stream(self._sl)
 
-		log.debug('Rx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
-			  c['TxCount'], c['RxCount'], c['FCS'],
-			  c['MsgType'], c['MsgData'].hex())
+        log.debug('Rx frame (Ns=%d, Nr=%d, fcs=0x%04x) %s %s',
+                  c['TxCount'], c['RxCount'], c['FCS'],
+                  c['MsgType'], c['MsgData'].hex())
 
-		# Parse the inner message
-		c['Msg'] = DbgMuxFrame.Msg.parse(c['MsgData'], MsgType=c['MsgType'])
+        # Parse the inner message
+        c['Msg'] = DbgMuxFrame.Msg.parse(c['MsgData'], MsgType=c['MsgType'])
 
-		self.rx_count += 1
-		return c
+        self.rx_count += 1
+        return c
