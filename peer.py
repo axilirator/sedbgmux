@@ -77,6 +77,14 @@ class DbgMuxPeer:
                   c['TxCount'], c['RxCount'], c['FCS'],
                   c['MsgType'], c['MsgData'].hex())
 
+        # Re-calculate and check the FCS
+        fcs = DbgMuxFrame.fcs_func(frame[:-2])
+        if fcs != c['FCS']:
+            log.error('Rx frame (Ns=%03u, Nr=%03u) with bad FCS: '
+                      'indicated 0x%04x != calculated 0x%04x',
+                      c['TxCount'], c['RxCount'], c['FCS'], fcs)
+            # TODO: NACK this frame?
+
         # Parse the inner message
         c['Msg'] = DbgMuxFrame.Msg.parse(c['MsgData'], MsgType=c['MsgType'])
 
