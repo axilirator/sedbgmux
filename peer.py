@@ -19,7 +19,7 @@
 import logging as log
 
 from typing import Any
-from construct import Container, Int16ul
+from construct import Const, Container, Int16ul
 
 from transport import Transport
 from proto import DbgMuxFrame
@@ -64,7 +64,14 @@ class DbgMuxPeer:
             self.tx_count += 1
 
     def recv(self) -> Container:
-        c = DbgMuxFrame.Frame.parse_stream(self.io)
+        frame: bytes = b''
+        frame += self.io.read(2)  # Magic
+        Const(b'\x42\x42').parse(frame[:2])
+        frame += self.io.read(2)  # Length
+        length: int = Int16ul.parse(frame[2:])
+        frame += self.io.read(length)  # Rest
+
+        c = DbgMuxFrame.Frame.parse(frame)
 
         log.debug('Rx frame (Ns=%03u, Nr=%03u, fcs=0x%04x) %s %s',
                   c['TxCount'], c['RxCount'], c['FCS'],
