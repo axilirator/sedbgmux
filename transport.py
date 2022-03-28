@@ -23,6 +23,10 @@ import serial
 import abc
 
 
+class TransportIOError(Exception):
+    ''' I/O error during read/write operation '''
+
+
 class Transport(abc.ABC):
     ''' Abstract transport layer for DebugMux '''
 
@@ -70,11 +74,17 @@ class TransportModem(Transport):
 
     def write(self, data: bytes) -> int:
         ''' Write the given data bytes '''
-        return self._sl.write(data)
+        try:
+            return self._sl.write(data)
+        except Exception as e:
+            raise TransportIOError('Failed to write() data') from e
 
     def read(self, length: int = 0) -> bytes:
         ''' Read the given number of bytes '''
-        return self._sl.read(length)
+        try:
+            return self._sl.read(length)
+        except Exception as e:
+            raise TransportIOError('Failed to read() data') from e
 
     def send_at_cmd(self, cmd: str, handle_echo: bool = True) -> None:
         ''' Send an AT command to the modem '''
